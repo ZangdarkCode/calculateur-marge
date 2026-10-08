@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculateur de bénéfice</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f7;font-family:Arial,sans-serif;color:#202124}
+.wrap{max-width:900px;margin:35px auto;padding:0 16px}h1{margin-bottom:6px;font-size:28px}
+.sub{color:#666;margin-top:0;margin-bottom:22px}.card{background:#fff;padding:22px;border-radius:14px;box-shadow:0 2px 12px #0001;margin-bottom:16px}
+h2{font-size:18px;margin:0 0 16px}.fields{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+label{display:block;font-size:13px;font-weight:bold;margin-bottom:6px}
+input,select{width:100%;padding:11px;border:1px solid #ccd1d6;border-radius:8px;font-size:16px}
+.results{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{padding:14px;background:#f7f8fa;border-radius:9px}
+.metric span{display:block;color:#666;font-size:12px}.metric strong{display:block;font-size:21px;margin-top:5px}
+.highlight{background:#eef7ef}.highlight strong{font-size:25px}
+.note{font-size:12px;color:#666;line-height:1.5;margin-bottom:0}
+.bar{height:26px;background:#e6e9ec;border-radius:15px;overflow:hidden;margin:18px 0 8px}
+.fill{height:100%;width:0%;transition:.25s}.green{background:#37a169}
+.status{text-align:center;font-weight:bold;margin-top:6px}.profit{color:#168044}.loss{color:#b42318}
+button{padding:10px 14px;border:0;border-radius:8px;background:#e9edf1;font-weight:bold;cursor:pointer}
+@media(max-width:650px){.fields,.results{grid-template-columns:1fr}.wrap{margin-top:18px}}
+</style>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Calculateur marge">
+<meta name="theme-color" content="#f5f5f5">
+<style>
+/* Optimisation iPhone SE */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  padding: 12px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+.container, .app, main { max-width: 100%; box-sizing: border-box; }
+input, select, button {
+  font-size: 16px !important;
+  min-height: 46px;
+  box-sizing: border-box;
+}
+input, select { width: 100%; }
+button { width: 100%; }
+.result-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+.card { min-width: 0; padding: 12px !important; }
+.value { font-size: 20px !important; overflow-wrap: anywhere; }
+.label { font-size: 12px !important; }
+canvas {
+  width: 100% !important;
+  height: 260px !important;
+  display: block;
+}
+@media (max-width: 390px) {
+  body { padding-left: 10px; padding-right: 10px; }
+  h1 { font-size: 24px !important; }
+  .result-grid { grid-template-columns: 1fr 1fr !important; }
+  .value { font-size: 18px !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Calculateur de bénéfice</h1>
+<p class="sub">Détermine à partir de combien d'articles tu récupères ta mise et combien tu gagnes en vendant tout.</p>
+
+<div class="card">
+<h2>Ton opération</h2>
+<div class="fields">
+<div><label>Nombre d'articles achetés</label><input id="qty" type="number" min="1" step="1" value="30"></div>
+<div><label>Prix d'achat unitaire HT (€)</label><input id="buy" type="number" min="0" step="0.01" value="5"></div>
+<div><label>Tarif global d'achat HT (€) — optionnel</label><input id="totalBuy" type="number" min="0" step="0.01" placeholder="Ex. 162"></div>
+<div><label>Prix de vente unitaire TTC (€)</label><input id="sell" type="number" min="0" step="0.01" value="9.90"></div>
+<div><label>TVA</label><select id="vat"><option value="20">20 %</option><option value="10">10 %</option><option value="5.5">5,5 %</option><option value="2.1">2,1 %</option><option value="0">0 %</option></select></div>
+<div><label>Frais d'achat HT (€) — optionnel</label><input id="shipping" type="number" min="0" step="0.01" value="0"></div>
+</div>
+</div>
+
+<div class="card">
+<h2>Résultats</h2>
+<div class="results">
+<div class="metric"><span>Mise totale</span><strong id="totalCost">—</strong></div>
+<div class="metric"><span>Prix d'achat unitaire HT calculé</span><strong id="calcBuy">—</strong></div>
+<div class="metric"><span>Prix de vente HT / article</span><strong id="sellHT">—</strong></div>
+<div class="metric"><span>Marge HT / article</span><strong id="margin">—</strong></div>
+<div class="metric"><span>Taux de marge</span><strong id="marginRate">—</strong></div>
+<div class="metric"><span>Taux de marque</span><strong id="markRate">—</strong></div>
+<div class="metric highlight"><span>Articles à vendre pour récupérer la mise</span><strong id="recover">—</strong></div>
+<div class="metric highlight"><span>Argent encaissé après récupération</span><strong id="recoverSales">—</strong></div>
+<div class="metric highlight"><span>Bénéfice si tout est vendu</span><strong id="finalProfit">—</strong></div>
+</div>
+<div class="bar"><div id="fill" class="fill green"></div></div>
+<div id="status" class="status"></div>
+<p class="note">Le calcul considère que le prix d'achat et les frais sont HT, et que le prix de vente est TTC. Si tu renseignes le tarif global d'achat, il sert à calculer automatiquement le prix unitaire. Pour récupérer ta mise, l'application compare les ventes HT au coût total d'achat. Le bénéfice affiché est une marge HT, hors autres charges de l'entreprise.</p>
+</div>
+
+<div class="card">
+<h2>Évolution du bénéfice selon les ventes</h2>
+<canvas id="profitChart" width="860" height="330" style="width:100%;height:330px;border:1px solid #e5e7eb;border-radius:10px;background:#fff"></canvas>
+<p class="note">La ligne montre le bénéfice après chaque article vendu. Le passage de 0 € correspond au moment où ta mise initiale est récupérée.</p>
+</div>
+
+<div class="card">
+<h2>Exemple de lecture</h2>
+<p class="note" id="explanation"></p>
+</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const euro=n=>n.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const pct=n=>n.toLocaleString('fr-FR',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2});
+
+function calc(){
+ const qty=Math.max(0,parseInt($('qty').value)||0);
+ let buy=parseFloat($('buy').value);
+ const totalBuyInput=parseFloat($('totalBuy').value);
+ const sellTTC=Math.max(0,parseFloat($('sell').value)||0);
+ // Si un tarif global est renseigné, il devient la référence et le prix unitaire est calculé.
+ if(Number.isFinite(totalBuyInput) && totalBuyInput>0 && qty>0){
+   buy=totalBuyInput/qty;
+   $('buy').value=buy.toFixed(4);
+ }
+ buy=Math.max(0,buy||0);
+ const vat=(parseFloat($('vat').value)||0)/100;
+ const shipping=Math.max(0,parseFloat($('shipping').value)||0);
+ const sellHT=sellTTC/(1+vat);
+ const totalCost=qty*buy+shipping;
+ const variableMargin=sellHT-buy;
+ const margin=variableMargin;
+ const marginRate=buy?margin/buy:0;
+ const markRate=sellHT?margin/sellHT:0;
+
+ // Minimum number of sales whose cumulative HT margin covers the whole investment.
+ // Pour récupérer la mise, on compare les ventes HT au coût total d'achat.
+ // Les frais d'achat sont également à récupérer.
+ const recover=sellHT>0?Math.ceil(totalCost/sellHT):Infinity;
+ const recoverSales=Number.isFinite(recover)?recover*sellHT:0;
+ const finalProfit=qty*margin-shipping;
+ const fill=Math.min(100,qty?recover/qty*100:0);
+ drawProfitChart(qty,buy,sellHT,shipping);
+
+ $('totalCost').textContent=euro(totalCost);
+ $('calcBuy').textContent=euro(buy);
+ $('sellHT').textContent=euro(sellHT);
+ $('margin').textContent=euro(margin);
+ $('marginRate').textContent=pct(marginRate);
+ $('markRate').textContent=pct(markRate);
+ $('recover').textContent=Number.isFinite(recover)?recover:'Impossible';
+ $('recoverSales').textContent=Number.isFinite(recover)?euro(recoverSales):'—';
+ $('finalProfit').textContent=euro(finalProfit);
+ $('fill').style.width=fill+'%';
+
+ const status=$('status');
+ if(finalProfit>0){status.className='status profit';status.textContent='Si tout est vendu : bénéfice de '+euro(finalProfit)+' HT.'}
+ else if(finalProfit<0){status.className='status loss';status.textContent='Si tout est vendu : perte de '+euro(Math.abs(finalProfit))+' HT.'}
+ else{status.className='status';status.textContent='Si tout est vendu : opération à l’équilibre.'}
+
+ if(qty>0 && margin>0){
+   const pctSold=Math.min(100,recover/qty*100);
+   $('explanation').textContent=`Sur ${qty} article${qty>1?'s':''}, tu dois en vendre ${recover} pour récupérer entièrement ta mise de ${euro(totalCost)}. Cela représente ${pctSold.toLocaleString('fr-FR',{maximumFractionDigits:1})} % du stock. Une fois ces ${recover} articles vendus, les suivants génèrent directement de la marge HT. Si tu vends les ${qty} articles, ton bénéfice final est de ${euro(finalProfit)} HT.`;
+ } else {
+   $('explanation').textContent='Avec ces paramètres, la marge par article ne permet pas de récupérer la mise.';
+ }
+}
+
+function drawProfitChart(qty,buy,sellHT,shipping){
+ const c=$('profitChart'), ctx=c.getContext('2d');
+ const W=c.width,H=c.height;
+ ctx.clearRect(0,0,W,H);
+ const L=62,R=22,T=25,B=45, pw=W-L-R, ph=H-T-B;
+ const maxQ=Math.max(1,qty);
+ const values=[];
+ for(let q=0;q<=maxQ;q++) values.push(q*sellHT-(qty*buy+shipping));
+ let minV=Math.min(...values,0), maxV=Math.max(...values,0);
+ if(maxV===minV){maxV=minV+1}
+ const pad=(maxV-minV)*0.10; minV-=pad; maxV+=pad;
+ const X=q=>L+(q/maxQ)*pw;
+ const Y=v=>H-B-((v-minV)/(maxV-minV))*ph;
+
+ ctx.strokeStyle='#dfe3e8';ctx.lineWidth=1;
+ for(let i=0;i<=4;i++){
+   const y=T+(ph*i/4), val=maxV-(maxV-minV)*i/4;
+   ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();
+   ctx.fillStyle='#666';ctx.font='12px Arial';ctx.fillText(euro(val),5,y+4);
+ }
+ ctx.strokeStyle='#888';ctx.beginPath();ctx.moveTo(L,Y(0));ctx.lineTo(W-R,Y(0));ctx.stroke();
+ ctx.strokeStyle='#222';ctx.lineWidth=2;ctx.beginPath();
+ values.forEach((v,q)=>{const x=X(q),y=Y(v);q===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+ ctx.stroke();
+
+ // Zero / recovery point
+ const recovery=sellHT>0?Math.ceil((qty*buy+shipping)/sellHT):Infinity;
+ if(Number.isFinite(recovery)&&recovery<=qty){
+   const x=X(recovery);
+   ctx.setLineDash([6,5]);ctx.strokeStyle='#777';ctx.lineWidth=1;
+   ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,H-B);ctx.stroke();ctx.setLineDash([]);
+   ctx.fillStyle='#333';ctx.font='bold 12px Arial';
+   ctx.fillText('Mise récupérée : '+recovery+' articles',Math.min(x+6,W-190),T+5);
+   ctx.beginPath();ctx.arc(x,Y(values[recovery]),4,0,Math.PI*2);ctx.fill();
+ }
+ ctx.fillStyle='#555';ctx.font='12px Arial';
+ ctx.fillText('Articles vendus',W/2-40,H-12);
+ ctx.fillText('0',L-4,H-B+18);ctx.fillText(String(maxQ),W-R-8,H-B+18);
+}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc));
+calc();
+</script>
+</body>
+</html>
